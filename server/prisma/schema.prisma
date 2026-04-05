@@ -1,0 +1,75 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             Int           @id @default(autoincrement())
+  email          String        @unique
+  password       String
+  name           String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  files          File[]
+  sharesFrom     FileShare[]   @relation("ReceivedShares")
+  sharesTo       FileShare[]   @relation("SentShares")
+  trustedUsers   TrustedUser[] @relation("TrustingUsers")
+  trustedBy      TrustedUser[] @relation("TrustedByUsers")
+}
+
+model File {
+  id        String      @id @default(uuid())
+  name      String
+  path      String
+  size      Int
+  mimeType  String?
+  userId    Int
+  user      User        @relation(fields: [userId], references: [id])
+  parentId  String?
+  parent    File?       @relation("FolderToFiles", fields: [parentId], references: [id])
+  children  File[]      @relation("FolderToFiles")
+  isFolder  Boolean     @default(false)
+  shares    FileShare[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([userId])
+  @@index([parentId])
+}
+
+model FileShare {
+  id         String   @id @default(uuid())
+  fileId     String
+  file       File     @relation(fields: [fileId], references: [id])
+  toUserId   Int
+  toUser     User     @relation("ReceivedShares", fields: [toUserId], references: [id])
+  fromUserId Int
+  fromUser   User     @relation("SentShares", fields: [fromUserId], references: [id])
+  message    String?
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([toUserId])
+  @@index([fromUserId])
+  @@index([fileId])
+}
+
+model TrustedUser {
+  id             Int      @id @default(autoincrement())
+  userId         Int
+  user           User     @relation("TrustingUsers", fields: [userId], references: [id])
+  trustedUserId  Int
+  trustedUser    User     @relation("TrustedByUsers", fields: [trustedUserId], references: [id])
+  createdAt      DateTime @default(now())
+
+  @@unique([userId, trustedUserId])
+  @@index([userId])
+  @@index([trustedUserId])
+}
